@@ -1,0 +1,47 @@
+{
+  "name": "bgg-collection-upload",
+  "version": "1.0.0",
+  "description": "Script to mass upload your Boardgame collection to BGG",
+  "main": "index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "start": "ts-node src/index.ts",
+    "collection_test": "yarn start collection_test.csv show-browser",
+    "collection_debug": "DEBUG=true yarn collection_test",
+    "dev": "tsc && ts-node-dev --respawn --transpile-only src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --fix"
+  },
+  "keywords": [],
+  "author": "Pedro Faria",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.33.0",
+    "@eslint/json": "^0.13.1",
+    "@eslint/markdown": "^7.1.0",
+    "@types/axios": "^0.14.4",
+    "@types/csv-parse": "^1.2.5",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^24.2.1",
+    "@types/selenium-webdriver": "^4.1.28",
+    "@types/xml2js": "^0.4.14",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "globals": "^16.3.0",
+    "jiti": "^2.5.1",
+    "prettier": "3.6.2",
+    "ts-node": "^10.9.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.1"
+  },
+  "repository": "https://github.com/PedroDiasFaria/bgg-collection-upload.git",
+  "dependencies": {
+    "selenium-webdriver": "^4.35.0",
+    "xml2js": "^0.6.2"
+  }
+}
