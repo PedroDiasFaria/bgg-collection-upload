@@ -125,17 +125,17 @@ const main = async () => {
         // small delay to be polite
         await driver.sleep(100)
       }
+      // Only navigate here **before quitting**
+      await driver.get(`${BASE_URL}/collection/user/${userName}`) // Redirect to user's collection page
     } finally {
-      if (!process.argv.includes('show-browser')) {
+      if (!process.argv.includes('show-browser') && driver) {
         await driver.quit()
       } else {
-        // If debugging and show-browser, keep it open (your prior code sometimes quits only if not debugging)
         console.log(YELLOW, 'Browser left open due to show-browser flag.')
       }
     }
 
     console.log(GREEN, 'Finished run.')
-    await driver.get(`${BASE_URL}/collection/user/${userName}`) // Redirect to user's collection page
   } catch (err) {
     const error = err as Error
     console.error(RED, '[Fatal error]', error?.message ?? err)

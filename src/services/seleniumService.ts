@@ -138,10 +138,10 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
   // --- Helper functions ---
   const waitAndClick = async (selector: string, label: string, index?: number) => {
     try {
-      console.log(RED, `Waiting for ${label} (${selector}) to be clickable...`)
+      if (process.env['DEBUG'])
+        console.log(RED, `Waiting for ${label} (${selector}) to be clickable...`)
 
       const allFound = await driver.findElements(By.css(selector))
-      console.log(YELLOW, `${label} initial matches found: ${allFound.length}`)
 
       if (allFound.length === 0) {
         console.log(YELLOW, `⚠️ ${label} not found on page.`)
@@ -156,13 +156,10 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
       }
 
       await driver.wait(until.elementIsVisible(el), 5000)
-      console.log(YELLOW, `${label} is visible.`)
 
       await driver.wait(until.elementIsEnabled(el), 5000)
-      console.log(YELLOW, `${label} is enabled.`)
 
       await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', el)
-      console.log(YELLOW, `Scrolled to ${label}.`)
 
       await driver.sleep(200)
       await el.click()
@@ -180,7 +177,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
       if ((checked && !isChecked) || (!checked && isChecked)) {
         await el.click()
       }
-      console.log(YELLOW, `✅ Set ${label} to ${checked}`)
+      if (process.env['DEBUG']) console.log(YELLOW, `✅ Set ${label} to ${checked}`)
     } catch (err) {
       console.log(YELLOW, `⚠️ Could not set ${label}: ${String(err)}`)
     }
@@ -199,7 +196,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
           ta.dispatchEvent(new Event('blur', { bubbles: true }));
         }
       `)
-      console.log(YELLOW, `✅ Added ${label}`)
+      if (process.env['DEBUG']) console.log(YELLOW, `✅ Added ${label}`)
     } catch (err) {
       console.log(YELLOW, `⚠️ Could not set ${label}: ${String(err)}`)
     }
@@ -262,7 +259,6 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
             });
           }
         `)
-        console.log(YELLOW, `✅ Set Wishlist Priority to ${item.status.wishlistpriority}`)
         if (item.status.wishlistcomment) {
           await waitAndSetTextarea(
             'wishlistcomment',
@@ -390,6 +386,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
     console.log(GREEN, `✅ Added version: ${versionAdded.title}`)
   } else if (!versionAdded.added) {
     await driver.get(`${BASE_URL}/boardgame/${id}`)
+    await driver.sleep(500)
     await addAndSetFields()
   }
 

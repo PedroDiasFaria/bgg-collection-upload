@@ -8,6 +8,8 @@
     "start": "ts-node src/index.ts",
     "collection_test": "yarn start collection_test.csv show-browser",
     "collection_debug": "DEBUG=true yarn collection_test",
+    "collection_test:nobrowser": "yarn start collection_test.csv",
+    "collection_debug:nobrowser": "DEBUG=true yarn collection_test:nobrowser",
     "dev": "tsc && ts-node-dev --respawn --transpile-only src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint src/**/*.ts",
