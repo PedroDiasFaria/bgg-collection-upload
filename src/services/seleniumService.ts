@@ -169,17 +169,37 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
     }
   }
 
-  const waitAndSetCheckbox = async (selector: string, checked: boolean, label: string) => {
+  const waitAndSetCheckbox = async (selector: string, shouldCheck: boolean, label: string) => {
     try {
-      const el = await driver.wait(until.elementLocated(By.css(selector)), 10000)
+      // Wait for checkbox to exist in DOM
+      const el = await driver.wait(until.elementLocated(By.css(selector)), 5000)
+
+      // Scroll it into view (important for headless mode)
+      await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', el)
+
+      // Wait until it's visible
       await driver.wait(until.elementIsVisible(el), 5000)
-      const isChecked = await el.getAttribute('checked')
-      if ((checked && !isChecked) || (!checked && isChecked)) {
-        await el.click()
+
+      // Check current state
+      const isChecked = await el.isSelected()
+
+      // Click only if necessary
+      if (isChecked !== shouldCheck) {
+        try {
+          await el.click()
+        } catch {
+          // Fallback for headless mode clicks
+          await driver.executeScript('arguments[0].click();', el)
+        }
+        if (process.env['DEBUG'])
+          console.log(`${GREEN}Set ${label} to ${shouldCheck ? 'checked' : 'unchecked'}`)
+      } else {
+        if (process.env['DEBUG'])
+          console.log(`${YELLOW}${label} already ${shouldCheck ? 'checked' : 'unchecked'}`)
       }
-      if (process.env['DEBUG']) console.log(YELLOW, `✅ Set ${label} to ${checked}`)
     } catch (err) {
-      console.log(YELLOW, `⚠️ Could not set ${label}: ${String(err)}`)
+      console.log(`${RED}Could not set ${label}: ${(err as Error).message}`)
+      if (process.env['DEBUG']) console.error(err)
     }
   }
 
@@ -221,7 +241,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
         console.log(YELLOW, `⚠️ Could not reset checkbox for ${selector}: ${String(err)}`)
       }
     }
-    console.log(YELLOW, '✅ Reset all checkboxes')
+    if (process.env['DEBUG']) console.log(YELLOW, '✅ Reset all checkboxes')
   }
 
   const setFields = async () => {
@@ -277,20 +297,22 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
   // --- Unified add + set fields + save function ---
   const addAndSetFields = async (isVersion = false) => {
     if (!isVersion) {
-      // Default add button
       await driver.wait(
         until.elementIsEnabled(
           driver.findElement(By.xpath("//button[@ng-disabled='colltoolbarctrl.loading']")),
         ),
         10000,
       )
-      await driver.sleep(200)
       await driver.executeScript(
         `document.querySelector("[ng-disabled='colltoolbarctrl.loading']").click();`,
       )
     }
 
-    await driver.sleep(500) // wait for modal to appear
+    // Wait for modal in both headless & normal mode
+    await driver.wait(until.elementLocated(By.css('.modal-dialog')), 5000)
+    const modal = await driver.findElement(By.css('.modal-dialog'))
+    await driver.wait(until.elementIsVisible(modal), 5000)
+
     await setFields()
     await waitAndClick("button[type='submit'].btn-primary:not([disabled])", 'Save')
     await driver.wait(
