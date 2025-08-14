@@ -1,10 +1,10 @@
 export type BoardGameCollectionItem = {
-  /** BGG object id as number */
+  //BGG object id as number
   objectId: number
   rating?: number | null
   numplays?: number | null
 
-  /** Status info from CSV or API */
+  // Status info from CSV or API
   status?: {
     own?: boolean
     fortrade?: boolean

@@ -17,8 +17,6 @@ const isSameVersion = (
   apiItem: BoardGameCollectionItem,
   csvItem: BoardGameCollectionItem,
 ): boolean => {
-  //process.env['DEBUG'] = 'true'
-
   if (process.env['DEBUG'])
     console.log(`Comparing API item ${apiItem.objectId} with CSV item ${csvItem.objectId}...`, {
       apiItem,
@@ -122,11 +120,10 @@ const main = async () => {
         } catch {
           console.log(RED, `Failed to add ${item.objectId}`)
         }
-        // small delay to be polite
         await driver.sleep(100)
       }
-      // Only navigate here **before quitting**
-      await driver.get(`${BASE_URL}/collection/user/${userName}`) // Redirect to user's collection page
+      // Redirect to user's collection page
+      await driver.get(`${BASE_URL}/collection/user/${userName}`)
     } finally {
       if (!process.argv.includes('show-browser') && driver) {
         await driver.quit()

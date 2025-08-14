@@ -4,9 +4,7 @@ import firefox from 'selenium-webdriver/firefox'
 import { RED, GREEN, YELLOW, BLUE, BASE_URL, languageId } from '../constants'
 import { BoardGameCollectionItem } from '../types'
 
-/**
- * Build a driver for the chosen browser. Keeps same interface as original script.
- */
+//Build a driver for the chosen browser. Keeps same interface as original script.
 export const buildDriver = (useFirefox: boolean): Promise<WebDriver> => {
   if (useFirefox) {
     const opts = new firefox.Options()
@@ -44,7 +42,6 @@ export const loginToBgg = async (driver: WebDriver, userName: string, password: 
       await driver.executeScript('arguments[0].click();', consent)
       console.log(GREEN, '[Info] Cookie consent accepted.')
     } catch {
-      // fallback
       await consent.click()
       console.log(GREEN, '[Info] Cookie consent accepted.')
     }
@@ -122,7 +119,7 @@ export const loginToBgg = async (driver: WebDriver, userName: string, password: 
 }
 
 /**
- * Add a single game to the collection, using the same DOM interactions from original script.
+ * Add a single game to the collection, using the same DOM interactions
  * This will:
  *  - open the "Add To Collection" modal
  *  - click checkboxes conditionally: own, fortrade, want, wanttobuy, prevowned
