@@ -82,7 +82,7 @@ const main = async () => {
       if (alreadyExists) {
         console.log(
           YELLOW,
-          `Skipping ${item.objectId} (${item.objectname}) because this exact version is already in your collection.`,
+          `Skipping ${item.objectId} (${item.longVersionName ?? item.objectname}) because this exact version is already in your collection.`,
         )
         continue
       }

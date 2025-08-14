@@ -76,3 +76,5 @@ $ yarn start collection_test.csv -u UserName -p 123456789 firefox show-browser
   - ~4–5 seconds per game in Firefox
 - Adding specific language versions may increase time to 6–7 seconds per game.
 - Closing other programs may improve performance.
+
+For reference, processing my entire collection of 759 games, during full functionality testing took 3,607.31 seconds (~1 hour).

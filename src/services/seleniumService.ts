@@ -9,12 +9,71 @@ export const buildDriver = (useFirefox: boolean): Promise<WebDriver> => {
   if (useFirefox) {
     const opts = new firefox.Options()
     // headless unless show-browser
-    if (!process.argv.includes('show-browser')) opts.addArguments('-headless')
+    if (!process.argv.includes('show-browser')) {
+      opts.addArguments('-headless', '--width=1366', '--height=900')
+    }
     return new Builder().forBrowser('firefox').setFirefoxOptions(opts).build()
   } else {
     const opts = new chrome.Options()
-    if (!process.argv.includes('show-browser')) opts.addArguments('--headless=new')
+    if (!process.argv.includes('show-browser')) {
+      opts.addArguments('--headless=new', '--window-size=1366,900')
+    }
     return new Builder().forBrowser('chrome').setChromeOptions(opts).build()
+  }
+}
+
+// Page Settling Helper
+// Waits for the page to be fully loaded and AngularJS to be idle (if applicable)
+// Also waits for a specific element to be ready, which is useful for BGG pages
+const waitForPageSettled = async (
+  driver: WebDriver,
+  {
+    readySelector = '#mainbody', // safe: exists on all game pages
+    timeout = 5000,
+  }: { readySelector?: string; timeout?: number } = {},
+) => {
+  // 1) DOM ready
+  if (process.env['DEBUG']) {
+    console.log(BLUE, '[Status update] Waiting for page to settle...')
+  }
+  await driver.wait(async () => {
+    const state = (await driver.executeScript('return document.readyState')) as string
+    return state === 'complete'
+  }, timeout)
+
+  // 2) AngularJS pending requests = 0 (best effort; ignore if not available)
+  if (process.env['DEBUG']) {
+    console.log(BLUE, '[Status update] Checking for AngularJS pending requests...')
+  }
+  try {
+    await driver.wait(async () => {
+      const idle = await driver.executeScript(`
+        try {
+          if (!window.angular) return true;
+          var inj = angular.element(document.body).injector && angular.element(document.body).injector();
+          if (!inj) return true;
+          var $http = inj.get('$http');
+          return $http.pendingRequests.length === 0;
+        } catch (e) { return true; }
+      `)
+      if (process.env['DEBUG']) {
+        console.log(GREEN, '[Success] AngularJS is idle.')
+      }
+      return !!idle
+    }, 5000)
+  } catch {
+    if (process.env['DEBUG']) {
+      console.log(YELLOW, '[Warning] AngularJS check failed. Continuing without it.')
+    }
+  }
+
+  // 3) Wait for a key element that proves the boardgame page is rendered
+  if (readySelector) {
+    if (process.env['DEBUG']) {
+      console.log(BLUE, `[Status update] Waiting for element ${readySelector} to be ready...`)
+    }
+    const el = await driver.wait(until.elementLocated(By.css(readySelector)), timeout)
+    await driver.wait(until.elementIsVisible(el), timeout)
   }
 }
 
@@ -61,7 +120,9 @@ export const loginToBgg = async (driver: WebDriver, userName: string, password: 
       break
     } catch (err) {
       // Ignore errors, try next selector
-      if (process.env['DEBUG']) console.error(`[Debug] Selector ${sel} not found:`, err)
+      if (process.env['DEBUG']) {
+        console.error(`[Debug] Selector ${sel} not found:`, err)
+      }
     }
   }
   if (!userElem) {
@@ -132,34 +193,52 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
   console.log(BLUE, `[Status update] Opening page for ID ${id}`)
   await driver.get(`${BASE_URL}/boardgame/${id}`)
 
+  // ensure the page is really ready before we proceed
+  await waitForPageSettled(driver)
+
   // --- Helper functions ---
   const waitAndClick = async (selector: string, label: string, index?: number) => {
     try {
-      if (process.env['DEBUG'])
-        console.log(RED, `Waiting for ${label} (${selector}) to be clickable...`)
-
-      const allFound = await driver.findElements(By.css(selector))
-
-      if (allFound.length === 0) {
-        console.log(YELLOW, `⚠️ ${label} not found on page.`)
-        return
-      }
-
       let el: WebElement
-      if (index != null && index >= 0 && index < allFound.length) {
-        el = allFound[index]!
+
+      if (index == null) {
+        // Single element case
+        el = await driver.wait(until.elementLocated(By.css(selector)), 5000)
       } else {
-        el = allFound[0]!
+        // Nth element: wait until there are enough matches
+        await driver.wait(
+          async () => {
+            const found = await driver.findElements(By.css(selector))
+            return found.length > index
+          },
+          5000,
+          `Timed out waiting for ${label} index ${index}`,
+        )
+        const found = await driver.findElements(By.css(selector))
+        el = found[index]!
       }
 
+      // Now ensure visible & enabled
       await driver.wait(until.elementIsVisible(el), 5000)
-
       await driver.wait(until.elementIsEnabled(el), 5000)
 
+      // Scroll into view (important in headless)
       await driver.executeScript('arguments[0].scrollIntoView({block: "center"});', el)
 
-      await driver.sleep(200)
-      await el.click()
+      // Click with JS fallback for headless flakiness
+      try {
+        await el.click()
+      } catch (err) {
+        if (process.env['DEBUG']) {
+          console.log(
+            YELLOW,
+            `⚠️ Click failed, trying JS fallback for ${label}:`,
+            (err as Error).message,
+          )
+        }
+        await driver.executeScript('arguments[0].click();', el)
+      }
+
       console.log(YELLOW, `✅ Clicked ${label}`)
     } catch (err) {
       console.log(YELLOW, `⚠️ Could not click ${label}: ${String(err)}`)
@@ -202,7 +281,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
 
   const waitAndSetTextarea = async (id: string, text: string, label: string) => {
     try {
-      const ta = await driver.wait(until.elementLocated(By.id(id)), 10000)
+      const ta = await driver.wait(until.elementLocated(By.id(id)), 5000)
       await driver.wait(until.elementIsVisible(ta), 5000)
       await driver.executeScript(`
         const ta = document.getElementById("${id}");
@@ -298,7 +377,7 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
         until.elementIsEnabled(
           driver.findElement(By.xpath("//button[@ng-disabled='colltoolbarctrl.loading']")),
         ),
-        10000,
+        5000,
       )
       await driver.executeScript(
         `document.querySelector("[ng-disabled='colltoolbarctrl.loading']").click();`,
@@ -308,13 +387,19 @@ export const addGameToCollection = async (driver: WebDriver, item: BoardGameColl
     // Wait for modal in both headless & normal mode
     await driver.wait(until.elementLocated(By.css('.modal-dialog')), 5000)
     const modal = await driver.findElement(By.css('.modal-dialog'))
-    await driver.wait(until.elementIsVisible(modal), 5000)
+
+    // Ensure modal is visible, by forcing a screenshot to trigger rendering
+    // This is a workaround for headless mode where modals might not render properly
+    if (!(await modal.isDisplayed())) {
+      await modal.takeScreenshot()
+    }
+    await driver.wait(until.elementIsVisible(modal), 500)
 
     await setFields()
     await waitAndClick("button[type='submit'].btn-primary:not([disabled])", 'Save')
     await driver.wait(
       until.elementLocated(By.css('div.cg-notify-message-template span.ng-scope')),
-      10000,
+      5000,
     )
   }
 

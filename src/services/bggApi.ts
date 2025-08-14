@@ -31,7 +31,7 @@ export const getExistingCollectionWithVersions = async (
   const urlParameters = new URLSearchParams(parameters).toString()
   const url = `${BASE_URL}/xmlapi2/collection?${urlParameters}`
 
-  console.log(BLUE, `[Status update] Fetching collection for user ${userName}...`, { url })
+  console.log(BLUE, `[Status update] Fetching collection for user ${userName}, from "${url}"`)
 
   try {
     const res = await axios.get(url)
