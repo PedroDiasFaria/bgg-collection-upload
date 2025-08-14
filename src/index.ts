@@ -1,4 +1,4 @@
-import { RED, GREEN, BLUE, YELLOW, BASE_URL } from './constants'
+import { RED, GREEN, BLUE, YELLOW, BASE_URL, MAX_ATTEMPTS } from './constants'
 import { parseCollectionCsv } from './utils/csvParser'
 import { getExistingCollectionWithVersions } from './services/bggApi'
 import { buildDriver, loginToBgg, addGameToCollection } from './services/seleniumService'
@@ -108,6 +108,8 @@ const main = async () => {
     try {
       await loginToBgg(driver, userName, password)
 
+      const errors: { item: BoardGameCollectionItem; error: string }[] = []
+
       let idx = 0
       for (const item of filtered) {
         idx++
@@ -115,13 +117,45 @@ const main = async () => {
           BLUE,
           `\n[${idx}/${filtered.length}] Processing ${item.objectId} - ${item.longVersionName ?? item.objectname}`,
         )
-        try {
-          await addGameToCollection(driver, item)
-        } catch {
-          console.log(RED, `Failed to add ${item.objectId}`)
+
+        let success = false
+        let attempt = 0
+        while (!success && attempt < MAX_ATTEMPTS) {
+          attempt++
+          try {
+            console.log(GREEN, `Attempt ${attempt} for ${item.objectId}...`)
+            await addGameToCollection(driver, item)
+            success = true
+          } catch (err) {
+            const msg = (err as Error)?.message || String(err)
+            console.log(RED, `Failed attempt ${attempt} for ${item.objectId}: ${msg}`)
+
+            if (attempt >= MAX_ATTEMPTS) {
+              errors.push({ item, error: msg })
+            } else {
+              console.log(YELLOW, `Retrying ${item.objectId}...`)
+              await driver.sleep(500) // small pause before retry
+            }
+          }
         }
+
+        // polite delay between games
         await driver.sleep(100)
       }
+
+      // After processing all games
+      if (errors.length > 0) {
+        console.log(RED, `\n⚠️ ${errors.length} games failed after ${MAX_ATTEMPTS} attempts:`)
+        for (const e of errors) {
+          console.log(
+            `${e.item.objectId} - ${e.item.longVersionName ?? e.item.objectname} | Error: ${e.error}`,
+          )
+        }
+        console.log(YELLOW, 'You may need to add these manually.')
+      } else {
+        console.log(GREEN, '\nAll games added successfully! 🎉')
+      }
+
       // Redirect to user's collection page
       await driver.get(`${BASE_URL}/collection/user/${userName}`)
     } finally {

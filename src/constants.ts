@@ -7,6 +7,8 @@ export const RESET = '\x1b[0m'
 
 export const BASE_URL = 'https://boardgamegeek.com'
 
+export const MAX_ATTEMPTS = 3
+
 export const languageId: Record<string, string> = {
   Afrikaans: '2677',
   Arabic: '2178',
